@@ -1,7 +1,10 @@
 package br.com.lukinhasssss
 
+import com.google.protobuf.Any
+import com.google.rpc.Code
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
+import io.grpc.protobuf.StatusProto
 import io.grpc.stub.StreamObserver
 import org.slf4j.LoggerFactory
 import javax.inject.Singleton
@@ -28,6 +31,20 @@ class FretesGrpcServer : FretesServiceGrpc.FretesServiceImplBase() {
                 .withDescription("Cep inválido!")
                 .augmentDescription("Formato esperado deve ser 99999-999")
                 .asRuntimeException())
+
+        // SIMULANDO UMA VERIFICAÇÃO DE SEGURANÇA
+        if (cep.endsWith("999")) {
+            val statusProto = com.google.rpc.Status.newBuilder()
+                .setCode(Code.PERMISSION_DENIED_VALUE)
+                .setMessage("Usuario nao pode acessar esse recurso")
+                .addDetails(Any.pack(ErrorDetails.newBuilder()
+                    .setCode(401)
+                    .setMessage("token expirado")
+                    .build()))
+                .build()
+            val error = StatusProto.toStatusRuntimeException(statusProto)
+            responseObserver?.onError(error)
+        }
 
         var valor = 0.0
         try {
