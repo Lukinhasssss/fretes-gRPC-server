@@ -1,5 +1,7 @@
 package br.com.lukinhasssss
 
+import io.grpc.Status
+import io.grpc.StatusRuntimeException
 import io.grpc.stub.StreamObserver
 import org.slf4j.LoggerFactory
 import javax.inject.Singleton
@@ -13,8 +15,35 @@ class FretesGrpcServer : FretesServiceGrpc.FretesServiceImplBase() {
     override fun calculaFrete(request: CalculaFreteRequest?, responseObserver: StreamObserver<CalculaFreteResponse>?) {
         logger.info("Calculando frete para request: $request")
 
+        val cep = request?.cep
+
+        if (cep == null || cep.isBlank()) {
+//            val error = StatusRuntimeException(Status.INVALID_ARGUMENT.withDescription("Cep deve ser informado"))
+            val error = Status.INVALID_ARGUMENT.withDescription("Cep deve ser informado").asRuntimeException()
+            responseObserver?.onError(error)
+        }
+
+        if (!cep!!.matches("[0-9]{5}-[0-9]{3}".toRegex()))
+            responseObserver?.onError(Status.INVALID_ARGUMENT
+                .withDescription("Cep inválido!")
+                .augmentDescription("Formato esperado deve ser 99999-999")
+                .asRuntimeException())
+
+        var valor = 0.0
+        try {
+            valor = Random.nextDouble(from = 0.0, until = 140.0)
+
+            if (valor > 100.0)
+                throw IllegalStateException("Erro inesperado ao executar logica de negocio!")
+        } catch (e: Exception) {
+            responseObserver?.onError(Status.INTERNAL
+                .withDescription(e.message)
+                .withCause(e) // anexado ao Status, mas não é enviado ao Client
+                .asRuntimeException())
+        }
+
         val response = CalculaFreteResponse.newBuilder()
-            .setCep(request!!.cep)
+            .setCep(request.cep)
             .setValor(Random.nextDouble(from = 0.0, until = 140.0))
             .build()
 
